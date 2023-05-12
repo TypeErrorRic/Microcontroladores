@@ -1,0 +1,7 @@
+*.rar
+*.doc
+*.atsuo
+*.atsln
+*.xml
+*.cproj
+Debug/
