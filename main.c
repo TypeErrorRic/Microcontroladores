@@ -8,10 +8,9 @@
 #include <avr/io.h>
 #include "lcd.h"
 #include "adcPollingModule.h"
+#include "ConfigTimer.h"
 
 #define F_CPU	8000000UL
-
-#include <util/delay.h>
 
 #include <stdio.h>
 
@@ -21,7 +20,6 @@
 
 //Captura los datos de voltaje y corriente para mostrar por la LCD:
 char buffer[20];
-char buffer2[20];
 //Valores:
 float valores[2];
 float voltaje = 0;
@@ -32,12 +30,14 @@ int parte_decimal = 0;
 //Variables para calculo de corriente:
 int parte_entera2 = 0;
 int parte_decimal2 = 0;
-
+//Variables de regulación:
+int contador = 0;
 unsigned char adcChannel = 0x00;
 
 int main(void)
 {	
 	DDRC = 0x00;
+	DDRD |= (1 << PD2);
 	
 	//Inits
 	lcd_init(LCD_DISP_ON);
@@ -47,12 +47,11 @@ int main(void)
 	//Init adc:
 	configADC();
 	
-	while(1)
-	{
+	//Init Timer:
+	initTimer();
 	
-		lcd_clrscr();
-		lcd_home();
-		
+	while(1)
+	{	
 		for (adcChannel=0; adcChannel<2; adcChannel++)
 		{
 			changeADCchannel((unsigned char)adcChannel);
@@ -69,7 +68,7 @@ int main(void)
 		
 		//Corriente:
 		corriente = (float)5*valores[1]/1023;
-		corriente = (float)(corriente - 2.5)/sensibilidad;
+		corriente = (float)(corriente - 2.5) / sensibilidad;
 		
 		parte_entera2 = (int)corriente;
 		if(parte_entera2 > corriente)
@@ -78,17 +77,21 @@ int main(void)
 			parte_decimal2 = (int)((corriente - parte_entera2) * 100);
 		
 		//MOSTRAR MENSAJES POR LA LCD:
-		
-		lcd_gotoxy(0,0);
-		//Voltaje:
-		sprintf(buffer, "Volt: %d.%02d V", parte_entera, parte_decimal);
-		lcd_puts(buffer);
-		
-		lcd_gotoxy(0,1);
-		sprintf(buffer2, "Cor: %d.%02d A", parte_entera2, parte_decimal2);
-		lcd_puts(buffer2);
-		//TIEMPO MUERTO:
-		_delay_ms(100);
+		if(desbordamiento(&contador))
+		{
+			lcd_clrscr();
+			lcd_home();
+			lcd_gotoxy(0,0);
+			//Voltaje:
+			sprintf(buffer, "Volt: %d.%02d V", parte_entera, parte_decimal);
+			lcd_puts(buffer);
+			
+			lcd_gotoxy(0,1);
+			sprintf(buffer, "Cor: %d.%02d A", parte_entera2, parte_decimal2);
+			lcd_puts(buffer);
+			contador = 0;
+			PORTD ^= (1 << PD2);
+		}
 	}
 }
 
