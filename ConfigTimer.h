@@ -10,7 +10,7 @@
 #define CONFIGTIMER_H_
 
 void initTimer();
-int desbordamiento(int *contador);
-
+void initLcd();
+void mostrarmensajeLCD(int *contador, float (*volts)(int *), float (*Ampers)(int *));
 
 #endif /* CONFIGTIMER_H_ */

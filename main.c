@@ -6,92 +6,50 @@
  */ 
 
 #include <avr/io.h>
-#include "lcd.h"
+
+#define F_CPU	16000000UL
+
 #include "adcPollingModule.h"
 #include "ConfigTimer.h"
-
-#define F_CPU	8000000UL
-
-#include <stdio.h>
-
-#define sensibilidad  0.100;
+#include "Usart_TX.h"
 
 //VARIABLES DEL PROGRAMA:
-
-//Captura los datos de voltaje y corriente para mostrar por la LCD:
-char buffer[20];
-//Valores:
-float valores[2];
-float voltaje = 0;
-float corriente = 0;
-//Variables para calculo de voltaje:
-int parte_entera = 0;
-int parte_decimal = 0;
-//Variables para calculo de corriente:
-int parte_entera2 = 0;
-int parte_decimal2 = 0;
-//Variables de regulación:
+//VARIABLES DE REGULACIÓN.
 int contador = 0;
-unsigned char adcChannel = 0x00;
 
 int main(void)
 {	
 	DDRC = 0x00;
-	DDRD |= (1 << PD2);
+	DDRD = 0xfe;
 	
-	//Inits
-	lcd_init(LCD_DISP_ON);
-	lcd_clrscr();
-	lcd_home();
+	//INIT LCD:
+	initLcd();
 
-	//Init adc:
+	//INIT ADC:
 	configADC();
 	
-	//Init Timer:
+	//INIT TIMER:
 	initTimer();
+	
+	//INIT USART:
+	//VELOCIDAD DE ENVIO DE CARACTERES EN MILISEGUNDOS.
+	doUSARTinit(1000);
 	
 	while(1)
 	{	
-		for (adcChannel=0; adcChannel<2; adcChannel++)
+		for (unsigned char adcChannel=0; adcChannel<2; adcChannel++)
 		{
-			changeADCchannel((unsigned char)adcChannel);
+			changeADCchannel(adcChannel);
 			startADC();
 			while(!isADCFinish());					
-			valores[adcChannel] = getADCData();
+			getADCData(adcChannel);
 		}
 		
-		//CONVERSIÓN VOLTAJE:
-		voltaje = (float)120*valores[0]/1023;
-		
-		parte_entera = (int)voltaje;
-		parte_decimal = (int)((voltaje - parte_entera) * 100);
-		
-		//Corriente:
-		corriente = (float)5*valores[1]/1023;
-		corriente = (float)(corriente - 2.5) / sensibilidad;
-		
-		parte_entera2 = (int)corriente;
-		if(parte_entera2 > corriente)
-			parte_decimal2 = (int)((-1)*(corriente - parte_entera2) * 100);
-		else 
-			parte_decimal2 = (int)((corriente - parte_entera2) * 100);
+		//ENVIAR DATOS POR USART:
+		trasmitirDatos(getVolt, getAmperios, 0);
 		
 		//MOSTRAR MENSAJES POR LA LCD:
-		if(desbordamiento(&contador))
-		{
-			lcd_clrscr();
-			lcd_home();
-			lcd_gotoxy(0,0);
-			//Voltaje:
-			sprintf(buffer, "Volt: %d.%02d V", parte_entera, parte_decimal);
-			lcd_puts(buffer);
-			
-			lcd_gotoxy(0,1);
-			sprintf(buffer, "Cor: %d.%02d A", parte_entera2, parte_decimal2);
-			lcd_puts(buffer);
-			contador = 0;
-			PORTD ^= (1 << PD2);
-		}
+		mostrarmensajeLCD(&contador, getVolt, getAmperios);
 	}
 }
 
