@@ -44,11 +44,17 @@ int isADCFinish()
 
 //VALOR MEDIO DE LA CORRIENTE:
 static float corriente = 0;
-static float corr_acumulador = 0;
+static double corrTrueRms = 0;
+static float corrMin = 0;
+static float corrMax = 0;
 //VALOR MEDIO DEL VOLATAJE:
 static float voltaje = 0;
+static double voltTrueRms = 0;
+static float voltMax = 0;
+static float voltMin = 0;
 //CONTADOR DE CUENTAS:
 static unsigned int contador = 0;
+static unsigned int contadorV = 0;
 
 void getADCData(unsigned char value)
 {
@@ -60,19 +66,45 @@ void getADCData(unsigned char value)
 		if(contador < NUM_MUESTRA)
 		{
 			float corr = (float) 5 * ((int) ADCW) / 1023;
-			corr_acumulador += pow(((float)(corr - 2.5) / sensibilidad), 2);
+			corr = (float) (corr - 2.5) / sensibilidad;
+			corrTrueRms += pow(corr, 2);
+			if(corr> corrMax)
+				corrMax = corr;
+			else if (corr < voltMin)
+				corrMin = corr;
 			contador++;
 		}
 		else
 		{
+			corriente = (sqrt(corrTrueRms / contador) * FILTROA) + ((((corrMax - corrMin) / 2) * 0.707) * (1 - FILTROA));
+			corrTrueRms = 0;
+			//REINICIO DE VARIABLES:
+			corrMin = 0;
+			corrMax = 0;
 			contador = 0;
-			corriente = sqrt(corr_acumulador / NUM_MUESTRA);
-			corr_acumulador = 0;
 		}
 		break;
 		case 0:
 		//CALCULO VOLTAJE:
-		voltaje = (float)120*ADCW/1023;
+		if(contadorV < NUM_MUESTRA)
+		{
+			float volt = (float) 110 * ((int) ADCW) / 1023;
+			voltTrueRms += pow(((volt - 55) / REDUCCION), 2);
+			if(volt > voltMax)
+				voltMax = volt;
+			else if (volt < voltMin)
+				voltMin = volt;
+			contadorV++;
+		}
+		else
+		{
+			voltaje =((sqrt(voltTrueRms / contadorV) * REDUCCION) * FILTROV) + ((((voltMax - voltMin) / 2) * 0.707) * (1 - FILTROV));
+			voltTrueRms = 0;
+			//REINICIO DE VARIABLES:
+			voltMax = 0;
+			voltMin = 0;
+			contadorV = 0;
+		}
 		break;
 	}
 }

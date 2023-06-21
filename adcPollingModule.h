@@ -11,7 +11,13 @@
 #define ADCPOLLING_H
 
 #define sensibilidad	((float) 0.066)
+
 #define NUM_MUESTRA		500
+
+#define FILTROA			((float) 0.98)
+#define FILTROV			((float) 0.97)
+
+#define REDUCCION		10
 
 // Functions.
 void configADC();
